@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather App</title>
+  <style>
+    :root {
+      --primary: #007bff;
+      --dark-bg: #1e1e2f;
+      --light-bg: #f4f4f4;
+      --card-bg-light: rgba(255, 255, 255, 0.95);
+      --card-bg-dark: rgba(34, 34, 51, 0.95);
+    }
+
+    body[data-theme="light"] {
+      background: linear-gradient(to right, #9d50bb, #6e48aa);
+      color: #222;
+    }
+
+    body[data-theme="dark"] {
+      background: linear-gradient(to right, #141e30, #243b55);
+      color: #f4f4f4;
+    }
+
+    body[data-theme="colorful"] {
+      background: linear-gradient(to right, #ff758c, #ff7eb3);
+      color: #222;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.5s ease;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .theme-switcher {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .theme-switcher button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      background: #eee;
+      transition: 0.3s;
+    }
+
+    .theme-switcher button:hover {
+      background: #ccc;
+    }
+
+    .weather-container {
+      background: var(--card-bg-light);
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+      transition: background 0.5s ease;
+    }
+
+    body[data-theme="dark"] .weather-container {
+      background: var(--card-bg-dark);
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .input-group input {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+    }
+
+    .input-group button {
+      padding: 12px 16px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .input-group button:hover {
+      background: #0056b3;
+    }
+
+    .weather-icon {
+      width: 100px;
+      height: 100px;
+      margin: 15px auto 10px;
+    }
+
+    .weather-info {
+      margin-top: 20px;
+      display: none;
+      text-align: left;
+      border-top: 1px solid #ddd;
+      padding-top: 20px;
+    }
+
+    .weather-info h2 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .weather-info p {
+      font-size: 16px;
+      margin: 5px 0;
+      line-height: 1.6;
+      display: flex;
+      align-items: center;
+    }
+
+    .weather-info p::before {
+      content: "• ";
+      color: var(--primary);
+      font-weight: bold;
+      margin-right: 5px;
+    }
+
+    .weather-details {
+      font-size: 14px;
+      font-style: italic;
+      margin: 10px 0 0;
+      color: #555;
+      text-align: center;
+    }
+
+    body[data-theme="dark"] .weather-details {
+      color: #ccc;
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="theme-switcher">
+    <button onclick="setTheme('light')">🌞 Light</button>
+    <button onclick="setTheme('dark')">🌙 Dark</button>
+    <button onclick="setTheme('colorful')">🌈 Colorful</button>
+  </div>
+
+  <div class="weather-container">
+    <h1>Weather App</h1>
+    <div class="input-group">
+      <input type="text" id="cityInput" placeholder="Enter city name" />
+      <button onclick="getWeather()">Search</button>
+    </div>
+    <div class="weather-info" id="weatherInfo">
+      <img id="weatherIcon" class="weather-icon" src="" alt="Weather Icon" />
+      <div class="weather-details" id="seasonInfo"></div>
+      <h2 id="locationName"></h2>
+      <p id="temperature"></p>
+      <p id="condition"></p>
+      <p id="countryName"></p>
+      <p id="coordinates"></p>
+      <div class="weather-details" id="dayTime"></div>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = '1df91d5175f5fb3481e7284a8ccfb81a';
+
+    function getTimeOfDay(hours) {
+      if (hours >= 5 && hours < 12) return 'Morning';
+      if (hours >= 12 && hours < 17) return 'Afternoon';
+      if (hours >= 17 && hours < 20) return 'Evening';
+      return 'Night';
+    }
+
+    function getSeason(month, lat) {
+      const isNorthern = lat >= 0;
+      const seasons = ["Winter", "Spring", "Summer", "Autumn"];
+      const index = Math.floor(month / 3);
+      return isNorthern ? seasons[index] : seasons[(index + 2) % 4];
+    }
+
+    async function getWeatherByCoords(lat, lon) {
+      try {
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`);
+        const data = await res.json();
+        displayWeather(data);
+      } catch (error) {
+        alert('Failed to get weather from coordinates.');
+        console.error(error);
+      }
+    }
+
+    async function getWeather() {
+      const city = document.getElementById('cityInput').value;
+      if (!city) return;
+
+      try {
+        const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`);
+        const data = await res.json();
+        displayWeather(data);
+      } catch (error) {
+        alert('Error fetching weather data.');
+        console.error(error);
+      }
+    }
+
+    function displayWeather(data) {
+      if (data.cod !== 200) {
+        alert('City not found or error occurred!');
+        return;
+      }
+
+      document.getElementById('weatherInfo').style.display = 'block';
+      document.getElementById('locationName').innerText = `${data.name}`;
+      document.getElementById('temperature').innerText = `Temperature: ${data.main.temp} °C`;
+      document.getElementById('condition').innerText = `Condition: ${data.weather[0].description}`;
+      document.getElementById('countryName').innerText = `Country: ${data.sys.country}`;
+      document.getElementById('coordinates').innerText = `Coordinates: [${data.coord.lat}, ${data.coord.lon}]`;
+
+      const iconCode = data.weather[0].icon;
+      const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+      document.getElementById('weatherIcon').src = iconUrl;
+      document.getElementById('weatherIcon').alt = data.weather[0].description;
+
+      const now = new Date();
+      const timeOfDay = getTimeOfDay(now.getHours());
+      const season = getSeason(now.getMonth(), data.coord.lat);
+
+      document.getElementById('dayTime').innerText = `Time of Day: ${timeOfDay}`;
+      document.getElementById('seasonInfo').innerText = `Season: ${season}`;
+    }
+
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+    }
+
+    window.onload = function () {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          position => {
+            getWeatherByCoords(position.coords.latitude, position.coords.longitude);
+          },
+          () => {
+            console.log('Geolocation permission denied or unavailable.');
+          }
+        );
+      } else {
+        console.log('Geolocation is not supported by this browser.');
+      }
+    }
+  </script>
+</body>
+</html>
